@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { gatherCandidates } from "../lib/gatherCandidates";
+// src/components/CandidatePanel.jsx
+import { useState } from "react";
+import { useIceCandidates } from "../hooks/useIceCandidates";
 
 // ==================================================
 // 1. STUN SERVER CONFIGURATIONS
@@ -33,79 +34,12 @@ const COLORS = {
 
 export default function CandidatePanel() {
 
-  // State 1:
+  // State 1: Configuration Selection
   const [configName, setConfigName] = useState("stun");
-
-  // State 2:
-  const [candidates, setCandidates] = useState([]);
-  const [elapsed, setElapsed] = useState(null);
-  const [gatheringState, setGatheringState] = useState("new");
   const iceServers = CONFIGS[configName];
 
-
-  // ==================================================
-  // 4. USE EFFECT - START GATHERING
-  // ==================================================
-
-  useEffect(() => {
-    let active = true;
-
-    setCandidates([]);
-    setElapsed(null);
-    setGatheringState("new");
-
-    // Gathering
-    const start = performance.now();
-
-    // Update timer every 10 milliseconds
-    const timer = setInterval(() => {
-      if (active) {
-        setElapsed(Math.round(performance.now() - start));
-      }
-    }, 10);
-
-    const stop = gatherCandidates({
-      iceServers,
-
-      onStateChange: (state) => {
-        if (!active) return;
-
-        setGatheringState(state);
-
-      
-        if (state === "complete") {
-          clearInterval(timer);
-          setElapsed(Math.round(performance.now() - start));
-        }
-      },
-
-      onCandidate: (candidate) => {
-        if (!active) return;
-
-        setCandidates((prev) => [
-          ...prev,
-          candidate,
-        ]);
-      },
-
-      onDone: () => {
-        if (!active) return;
-
-        clearInterval(timer);
-
-        const end = performance.now();
-
-        setElapsed(Math.round(end - start));
-      },
-    });
-
-    return () => {
-      active = false;
-      clearInterval(timer);
-      stop();
-    };
-
-  }, [iceServers]);
+  // O5: Using the custom hook to handle candidate gathering, state, and timer cleanly
+  const { candidates, gatheringState, elapsed } = useIceCandidates(iceServers);
 
 
   // ==================================================
