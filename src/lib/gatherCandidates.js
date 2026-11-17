@@ -1,4 +1,3 @@
-
 export function gatherCandidates({
   iceServers,
   onCandidate,
@@ -46,5 +45,24 @@ export function gatherCandidates({
     if (pc.signalingState !== "closed") {
       pc.close();
     }
+  };
+}
+
+// O8: Parse raw SDP candidate string with a regular expression
+export function parseCandidateString(candidateStr) {
+  const regex =
+    /^candidate:(\S+)\s+(\d+)\s+(udp|tcp)\s+(\d+)\s+(\S+)\s+(\d+)\s+typ\s+(\S+)/i;
+  const match = candidateStr.match(regex);
+
+  if (!match) return null;
+
+  return {
+    foundation: match[1],
+    componentId: Number(match[2]),
+    protocol: match[3].toLowerCase(),
+    priority: Number(match[4]),
+    address: match[5],
+    port: Number(match[6]),
+    type: match[7].toLowerCase(),
   };
 }

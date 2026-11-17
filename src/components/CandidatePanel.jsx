@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { gatherCandidates } from "../lib/gatherCandidates";
 
@@ -41,10 +40,6 @@ export default function CandidatePanel() {
   const [candidates, setCandidates] = useState([]);
   const [elapsed, setElapsed] = useState(null);
   const [gatheringState, setGatheringState] = useState("new");
-
-  // لو configName = stun هيرجع Google STUN.
-  // لو configName = none هيرجع Array فاضية.
-
   const iceServers = CONFIGS[configName];
 
 
@@ -59,12 +54,14 @@ export default function CandidatePanel() {
     setElapsed(null);
     setGatheringState("new");
 
-    // تسجيل وقت بداية Gathering
+    // Gathering
     const start = performance.now();
 
     // Update timer every 10 milliseconds
     const timer = setInterval(() => {
-      setElapsed(Math.round(performance.now() - start));
+      if (active) {
+        setElapsed(Math.round(performance.now() - start));
+      }
     }, 10);
 
     const stop = gatherCandidates({
@@ -74,6 +71,12 @@ export default function CandidatePanel() {
         if (!active) return;
 
         setGatheringState(state);
+
+      
+        if (state === "complete") {
+          clearInterval(timer);
+          setElapsed(Math.round(performance.now() - start));
+        }
       },
 
       onCandidate: (candidate) => {
@@ -112,6 +115,29 @@ export default function CandidatePanel() {
   const sorted = [...candidates].sort(
     (a, b) => b.priority - a.priority
   );
+
+  // O6: Separate candidates into UDP and TCP groups
+  const udpCandidates = sorted.filter((c) => c.protocol?.toLowerCase() === "udp");
+  const tcpCandidates = sorted.filter((c) => c.protocol?.toLowerCase() === "tcp");
+
+  // Helper to render rows
+  const renderRows = (list) =>
+    list.map((c) => (
+      <tr
+        key={`${c.foundation}-${c.priority}-${c.address}-${c.port}`}
+        style={{
+          background: COLORS[c.type] ?? "white",
+        }}
+      >
+        <td>{c.type}</td>
+        <td>{c.protocol}</td>
+        <td>
+          {c.address}:{c.port}
+        </td>
+        <td>{c.priority}</td>
+        <td>{c.foundation}</td>
+      </tr>
+    ));
 
 
   // ==================================================
@@ -176,40 +202,32 @@ export default function CandidatePanel() {
 
         <tbody>
 
-          {sorted.map((c) => (
-
-            <tr
-              key={`${c.foundation}-${c.priority}-${c.address}-${c.port}`}
-
-              style={{
-                background: COLORS[c.type] ?? "white",
-              }}
-            >
-
-              <td>{c.type}</td>
-
-              <td>{c.protocol}</td>
-
-              <td>
-                {c.address}:{c.port}
-              </td>
-
-              <td>{c.priority}</td>
-
-              <td>{c.foundation}</td>
-
-            </tr>
-
-          ))}
-
-          {sorted.length === 0 && (
-
+          {/* O6: UDP Candidates Group */}
+          <tr>
+            <th colSpan={5} style={{ textAlign: "left", background: "#e5e7eb", padding: "6px 8px", color: "#1f2937" }}>
+              UDP Candidates ({udpCandidates.length})
+            </th>
+          </tr>
+          {udpCandidates.length > 0 ? (
+            renderRows(udpCandidates)
+          ) : (
             <tr>
-              <td colSpan={5}>
-                Waiting for candidates...
-              </td>
+              <td colSpan={5}>Waiting for UDP candidates...</td>
             </tr>
+          )}
 
+          {/* O6: TCP Candidates Group */}
+          <tr>
+            <th colSpan={5} style={{ textAlign: "left", background: "#e5e7eb", padding: "6px 8px", color: "#1f2937" }}>
+              TCP Candidates ({tcpCandidates.length})
+            </th>
+          </tr>
+          {tcpCandidates.length > 0 ? (
+            renderRows(tcpCandidates)
+          ) : (
+            <tr>
+              <td colSpan={5}>No TCP candidates gathered.</td>
+            </tr>
           )}
 
         </tbody>
